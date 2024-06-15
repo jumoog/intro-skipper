@@ -33,7 +33,7 @@ public class ChapterAnalyzer : IMediaFileAnalyzer
         AnalysisMode mode,
         CancellationToken cancellationToken)
     {
-        var skippableRanges = new Dictionary<Guid, Intro>();
+        var skippableRanges = new Dictionary<Guid, XmlIntro>();
 
         var expression = mode == AnalysisMode.Introduction ?
             Plugin.Instance!.Configuration.ChapterAnalyzerIntroductionPattern :
@@ -82,13 +82,13 @@ public class ChapterAnalyzer : IMediaFileAnalyzer
     /// <param name="expression">Regular expression pattern.</param>
     /// <param name="mode">Analysis mode.</param>
     /// <returns>Intro object containing skippable time range, or null if no chapter matched.</returns>
-    public Intro? FindMatchingChapter(
+    public XmlIntro? FindMatchingChapter(
         QueuedEpisode episode,
         Collection<ChapterInfo> chapters,
         string expression,
         AnalysisMode mode)
     {
-        Intro? matchingChapter = null;
+        XmlIntro? matchingChapter = null;
 
         var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
 

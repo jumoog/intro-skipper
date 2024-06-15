@@ -8,14 +8,14 @@ namespace ConfusedPolarBear.Plugin.IntroSkipper;
 /// Result of fingerprinting and analyzing two episodes in a season.
 /// All times are measured in seconds relative to the beginning of the media file.
 /// </summary>
-public class Intro
+public class XmlIntro
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="Intro"/> class.
+    /// Initializes a new instance of the <see cref="XmlIntro"/> class.
     /// </summary>
     /// <param name="episode">Episode.</param>
     /// <param name="intro">Introduction time range.</param>
-    public Intro(Guid episode, TimeRange intro)
+    public XmlIntro(Guid episode, TimeRange intro)
     {
         EpisodeId = episode;
         IntroStart = intro.Start;
@@ -23,10 +23,10 @@ public class Intro
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="Intro"/> class.
+    /// Initializes a new instance of the <see cref="XmlIntro"/> class.
     /// </summary>
     /// <param name="episode">Episode.</param>
-    public Intro(Guid episode)
+    public XmlIntro(Guid episode)
     {
         EpisodeId = episode;
         IntroStart = 0;
@@ -34,10 +34,10 @@ public class Intro
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="Intro"/> class.
+    /// Initializes a new instance of the <see cref="XmlIntro"/> class.
     /// </summary>
     /// <param name="intro">intro.</param>
-    public Intro(Intro intro)
+    public XmlIntro(XmlIntro intro)
     {
         EpisodeId = intro.EpisodeId;
         IntroStart = intro.IntroStart;
@@ -45,9 +45,9 @@ public class Intro
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="Intro"/> class.
+    /// Initializes a new instance of the <see cref="XmlIntro"/> class.
     /// </summary>
-    public Intro()
+    public XmlIntro()
     {
     }
 
@@ -110,7 +110,7 @@ public class Intro
 /// <summary>
 /// An Intro class with episode metadata. Only used in end to end testing programs.
 /// </summary>
-public class IntroWithMetadata : Intro
+public class IntroWithMetadata : XmlIntro
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="IntroWithMetadata"/> class.
@@ -119,7 +119,7 @@ public class IntroWithMetadata : Intro
     /// <param name="season">Season number.</param>
     /// <param name="title">Episode title.</param>
     /// <param name="intro">Intro timestamps.</param>
-    public IntroWithMetadata(string series, int season, string title, Intro intro)
+    public IntroWithMetadata(string series, int season, string title, XmlIntro intro)
     {
         Series = series;
         Season = season;

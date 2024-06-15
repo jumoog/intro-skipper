@@ -34,7 +34,7 @@ public class SkipIntroController : ControllerBase
     /// <returns>Detected intro.</returns>
     [HttpGet("Episode/{id}/IntroTimestamps")]
     [HttpGet("Episode/{id}/IntroTimestamps/v1")]
-    public ActionResult<Intro> GetIntroTimestamps(
+    public ActionResult<XmlIntro> GetIntroTimestamps(
         [FromRoute] Guid id,
         [FromQuery] AnalysisMode mode = AnalysisMode.Introduction)
     {
@@ -55,16 +55,16 @@ public class SkipIntroController : ControllerBase
     /// <response code="200">Skippable segments dictionary.</response>
     /// <returns>Dictionary of skippable segments.</returns>
     [HttpGet("Episode/{id}/IntroSkipperSegments")]
-    public ActionResult<Dictionary<AnalysisMode, Intro>> GetSkippableSegments([FromRoute] Guid id)
+    public ActionResult<Dictionary<AnalysisMode, XmlIntro>> GetSkippableSegments([FromRoute] Guid id)
     {
-        var segments = new Dictionary<AnalysisMode, Intro>();
+        var segments = new Dictionary<AnalysisMode, XmlIntro>();
 
-        if (GetIntro(id, AnalysisMode.Introduction) is Intro intro)
+        if (GetIntro(id, AnalysisMode.Introduction) is XmlIntro intro)
         {
             segments[AnalysisMode.Introduction] = intro;
         }
 
-        if (GetIntro(id, AnalysisMode.Credits) is Intro credits)
+        if (GetIntro(id, AnalysisMode.Credits) is XmlIntro credits)
         {
             segments[AnalysisMode.Credits] = credits;
         }
@@ -76,7 +76,7 @@ public class SkipIntroController : ControllerBase
     /// <param name="id">Unique identifier of this episode.</param>
     /// <param name="mode">Mode.</param>
     /// <returns>Intro object if the provided item has an intro, null otherwise.</returns>
-    private Intro? GetIntro(Guid id, AnalysisMode mode)
+    private XmlIntro? GetIntro(Guid id, AnalysisMode mode)
     {
         try
         {
@@ -85,7 +85,7 @@ public class SkipIntroController : ControllerBase
                 Plugin.Instance!.Credits[id];
 
             // Operate on a copy to avoid mutating the original Intro object stored in the dictionary.
-            var segment = new Intro(timestamp);
+            var segment = new XmlIntro(timestamp);
 
             var config = Plugin.Instance.Configuration;
             segment.IntroEnd -= config.SecondsOfIntroToPlay;

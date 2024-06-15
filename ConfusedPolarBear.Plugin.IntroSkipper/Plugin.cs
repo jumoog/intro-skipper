@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using ConfusedPolarBear.Plugin.IntroSkipper.Configuration;
+using ConfusedPolarBear.Plugin.IntroSkipper.Db;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller.Configuration;
@@ -13,6 +14,8 @@ using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace ConfusedPolarBear.Plugin.IntroSkipper;
@@ -29,6 +32,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     private ILogger<Plugin> _logger;
     private string _introPath;
     private string _creditsPath;
+    private SegmentService _segmentService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Plugin"/> class.
@@ -39,13 +43,15 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// <param name="libraryManager">Library manager.</param>
     /// <param name="itemRepository">Item repository.</param>
     /// <param name="logger">Logger.</param>
+    /// <param name="segmentService"></param>
     public Plugin(
         IApplicationPaths applicationPaths,
         IXmlSerializer xmlSerializer,
         IServerConfigurationManager serverConfiguration,
         ILibraryManager libraryManager,
         IItemRepository itemRepository,
-        ILogger<Plugin> logger)
+        ILogger<Plugin> logger,
+        SegmentService segmentService)
         : base(applicationPaths, xmlSerializer)
     {
         Instance = this;
@@ -57,6 +63,18 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         FFmpegPath = serverConfiguration.GetEncodingOptions().EncoderAppPathDisplay;
 
         ArgumentNullException.ThrowIfNull(applicationPaths);
+
+        // Setup service collection and logging
+        var serviceCollection = new ServiceCollection();
+        ConfigureServices(serviceCollection);
+
+        var serviceProvider = serviceCollection.BuildServiceProvider();
+
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+
+        // Migrate database
+        _segmentService = serviceProvider.GetService<SegmentService>();
+        _segmentService?.MigrateDatabase();
 
         var pluginDirName = "introskipper";
         var pluginCachePath = "chromaprints";
@@ -158,17 +176,18 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         }
 
         FFmpegWrapper.CheckFFmpegVersion();
+        _segmentService = segmentService;
     }
 
     /// <summary>
     /// Gets the results of fingerprinting all episodes.
     /// </summary>
-    public ConcurrentDictionary<Guid, Intro> Intros { get; } = new();
+    public ConcurrentDictionary<Guid, Segment> Intros { get; } = new();
 
     /// <summary>
     /// Gets all discovered ending credits.
     /// </summary>
-    public ConcurrentDictionary<Guid, Intro> Credits { get; } = new();
+    public ConcurrentDictionary<Guid, Segment> Credits { get; } = new();
 
     /// <summary>
     /// Gets the most recent media item queue.
@@ -212,7 +231,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// <param name="mode">Mode.</param>
     public void SaveTimestamps(AnalysisMode mode)
     {
-        List<Intro> introList = new List<Intro>();
+        List<Segment> introList = new List<Segment>();
         var filePath = mode == AnalysisMode.Introduction
                         ? _introPath
                         : _creditsPath;
@@ -242,25 +261,16 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// </summary>
     public void RestoreTimestamps()
     {
-        if (File.Exists(_introPath))
+        var intros = _segmentService.GetSegments(SegmentType.Intro);
+        foreach (var intro in intros)
         {
-            // Since dictionaries can't be easily serialized, analysis results are stored on disk as a list.
-            var introList = XmlSerializationHelper.DeserializeFromXml(_introPath);
-
-            foreach (var intro in introList)
-            {
-                Instance!.Intros.TryAdd(intro.EpisodeId, intro);
-            }
+            Instance!.Intros.TryAdd(intro.EpisodeId, intro);
         }
 
-        if (File.Exists(_creditsPath))
+        var outros = _segmentService.GetSegments(SegmentType.Credits);
+        foreach (var outro in outros)
         {
-            var creditList = XmlSerializationHelper.DeserializeFromXml(_creditsPath);
-
-            foreach (var credit in creditList)
-            {
-                Instance!.Credits.TryAdd(credit.EpisodeId, credit);
-            }
+            Instance!.Credits.TryAdd(outro.EpisodeId, outro);
         }
     }
 
@@ -357,7 +367,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         return _itemRepository.GetChapters(item);
     }
 
-    internal void UpdateTimestamps(Dictionary<Guid, Intro> newTimestamps, AnalysisMode mode)
+    internal void UpdateTimestamps(Dictionary<Guid, Segment> newTimestamps, AnalysisMode mode)
     {
         foreach (var intro in newTimestamps)
         {
@@ -422,5 +432,13 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         File.WriteAllText(indexPath, contents);
 
         _logger.LogInformation("Skip intro button successfully added");
+    }
+
+    private static void ConfigureServices(IServiceCollection services)
+    {
+        services.AddLogging(configure => configure.AddConsole())
+                .AddTransient<SegmentService>()
+                .AddDbContext<SegmentContext>(options =>
+                    options.UseSqlite("Data Source=segments.db"));
     }
 }

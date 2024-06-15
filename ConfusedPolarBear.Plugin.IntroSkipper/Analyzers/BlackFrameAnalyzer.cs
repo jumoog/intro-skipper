@@ -49,7 +49,7 @@ public class BlackFrameAnalyzer : IMediaFileAnalyzer
             throw new NotImplementedException("mode must equal Credits");
         }
 
-        var creditTimes = new Dictionary<Guid, Intro>();
+        var creditTimes = new Dictionary<Guid, XmlIntro>();
 
         bool isFirstEpisode = true;
 
@@ -131,7 +131,7 @@ public class BlackFrameAnalyzer : IMediaFileAnalyzer
     /// <param name="searchDistance">Search Distance.</param>
     /// <param name="minimum">Percentage of the frame that must be black.</param>
     /// <returns>Credits timestamp.</returns>
-    public Intro? AnalyzeMediaFile(QueuedEpisode episode, double searchStart, int searchDistance, int minimum)
+    public XmlIntro? AnalyzeMediaFile(QueuedEpisode episode, double searchStart, int searchDistance, int minimum)
     {
         // Start by analyzing the last N minutes of the file.
         var upperLimit = searchStart;

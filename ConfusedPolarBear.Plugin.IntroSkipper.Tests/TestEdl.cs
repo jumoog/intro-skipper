@@ -37,8 +37,8 @@ public class TestEdl
         Assert.Equal(edlPath, EdlManager.GetEdlPath(mediaPath));
     }
 
-    private Intro MakeIntro(double start, double end)
+    private XmlIntro MakeIntro(double start, double end)
     {
-        return new Intro(Guid.Empty, new TimeRange(start, end));
+        return new XmlIntro(Guid.Empty, new TimeRange(start, end));
     }
 }

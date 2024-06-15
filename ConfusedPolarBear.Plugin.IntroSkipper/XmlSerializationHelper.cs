@@ -19,9 +19,9 @@ namespace ConfusedPolarBear.Plugin.IntroSkipper
             serializer.WriteObject(fileStream, obj);
         }
 
-        public static List<Intro> DeserializeFromXml(string filePath)
+        public static List<XmlIntro> DeserializeFromXml(string filePath)
         {
-            var result = new List<Intro>();
+            var result = new List<XmlIntro>();
             try
             {
                 // Create a FileStream to read the XML file
@@ -30,10 +30,10 @@ namespace ConfusedPolarBear.Plugin.IntroSkipper
                 XmlDictionaryReader reader = XmlDictionaryReader.CreateTextReader(fileStream, new XmlDictionaryReaderQuotas());
 
                 // Create a DataContractSerializer for type T
-                DataContractSerializer serializer = new DataContractSerializer(typeof(List<Intro>));
+                DataContractSerializer serializer = new DataContractSerializer(typeof(List<XmlIntro>));
 
                 // Deserialize the object from the XML
-                result = serializer.ReadObject(reader) as List<Intro>;
+                result = serializer.ReadObject(reader) as List<XmlIntro>;
 
                 // Close the reader
                 reader.Close();

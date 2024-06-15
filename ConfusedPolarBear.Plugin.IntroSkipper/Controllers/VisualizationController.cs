@@ -163,10 +163,10 @@ public class VisualizationController : ControllerBase
     /// <response code="204">New introduction timestamps saved.</response>
     /// <returns>No content.</returns>
     [HttpPost("Episode/{Id}/UpdateIntroTimestamps")]
-    public ActionResult UpdateTimestamps([FromRoute] Guid id, [FromBody] Intro timestamps)
+    public ActionResult UpdateTimestamps([FromRoute] Guid id, [FromBody] XmlIntro timestamps)
     {
         var tr = new TimeRange(timestamps.IntroStart, timestamps.IntroEnd);
-        Plugin.Instance!.Intros[id] = new Intro(id, tr);
+        Plugin.Instance!.Intros[id] = new XmlIntro(id, tr);
         Plugin.Instance.SaveTimestamps(AnalysisMode.Introduction);
 
         return NoContent();

@@ -41,7 +41,7 @@ public class TestChapterAnalyzer
         Assert.Equal(2000, creditsChapter.IntroEnd);
     }
 
-    private Intro? FindChapter(Collection<ChapterInfo> chapters, AnalysisMode mode)
+    private XmlIntro? FindChapter(Collection<ChapterInfo> chapters, AnalysisMode mode)
     {
         var logger = new LoggerFactory().CreateLogger<ChapterAnalyzer>();
         var analyzer = new ChapterAnalyzer(logger);

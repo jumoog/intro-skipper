@@ -56,7 +56,7 @@ public class ChromaprintAnalyzer : IMediaFileAnalyzer
         CancellationToken cancellationToken)
     {
         // All intros for this season.
-        var seasonIntros = new Dictionary<Guid, Intro>();
+        var seasonIntros = new Dictionary<Guid, XmlIntro>();
 
         // Cache of all fingerprints for this season.
         var fingerprintCache = new Dictionary<Guid, uint[]>();
@@ -198,7 +198,7 @@ public class ChromaprintAnalyzer : IMediaFileAnalyzer
     /// <param name="rhsId">Second episode id.</param>
     /// <param name="rhsPoints">Second episode fingerprint points.</param>
     /// <returns>Intros for the first and second episodes.</returns>
-    public (Intro Lhs, Intro Rhs) CompareEpisodes(
+    public (XmlIntro Lhs, XmlIntro Rhs) CompareEpisodes(
         Guid lhsId,
         uint[] lhsPoints,
         Guid rhsId,
@@ -220,7 +220,7 @@ public class ChromaprintAnalyzer : IMediaFileAnalyzer
             lhsId,
             rhsId);
 
-        return (new Intro(lhsId), new Intro(rhsId));
+        return (new XmlIntro(lhsId), new XmlIntro(rhsId));
     }
 
     /// <summary>
@@ -231,7 +231,7 @@ public class ChromaprintAnalyzer : IMediaFileAnalyzer
     /// <param name="rhsId">Second episode id.</param>
     /// <param name="rhsRanges">Second episode shared timecodes.</param>
     /// <returns>Intros for the first and second episodes.</returns>
-    private (Intro Lhs, Intro Rhs) GetLongestTimeRange(
+    private (XmlIntro Lhs, XmlIntro Rhs) GetLongestTimeRange(
         Guid lhsId,
         List<TimeRange> lhsRanges,
         Guid rhsId,
@@ -256,7 +256,7 @@ public class ChromaprintAnalyzer : IMediaFileAnalyzer
         }
 
         // Create Intro classes for each time range.
-        return (new Intro(lhsId, lhsIntro), new Intro(rhsId, rhsIntro));
+        return (new XmlIntro(lhsId, lhsIntro), new XmlIntro(rhsId, rhsIntro));
     }
 
     /// <summary>
@@ -402,11 +402,11 @@ public class ChromaprintAnalyzer : IMediaFileAnalyzer
     /// </summary>
     /// <param name="episodes">QueuedEpisodes to adjust.</param>
     /// <param name="originalIntros">Original introductions.</param>
-    private Dictionary<Guid, Intro> AdjustIntroEndTimes(
+    private Dictionary<Guid, XmlIntro> AdjustIntroEndTimes(
         ReadOnlyCollection<QueuedEpisode> episodes,
-        Dictionary<Guid, Intro> originalIntros)
+        Dictionary<Guid, XmlIntro> originalIntros)
     {
-        Dictionary<Guid, Intro> modifiedIntros = new();
+        Dictionary<Guid, XmlIntro> modifiedIntros = new();
 
         // For all episodes
         foreach (var episode in episodes)
