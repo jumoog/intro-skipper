@@ -6,6 +6,7 @@ using System.Linq;
 using System.Numerics;
 using System.Threading;
 using ConfusedPolarBear.Plugin.IntroSkipper.Configuration;
+using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace ConfusedPolarBear.Plugin.IntroSkipper;
@@ -203,11 +204,8 @@ public class ChromaprintAnalyzer : IMediaFileAnalyzer
             return analysisQueue;
         }
 
-        if (this._analysisMode == AnalysisMode.Introduction)
-        {
-            // Adjust all introduction end times so that they end at silence.
-            seasonIntros = AdjustIntroEndTimes(analysisQueue, seasonIntros);
-        }
+        // Adjust all introduction times.
+        seasonIntros = AdjustIntroTimes(analysisQueue, seasonIntros);
 
         Plugin.Instance!.UpdateTimestamps(seasonIntros, this._analysisMode);
 
@@ -402,22 +400,6 @@ public class ChromaprintAnalyzer : IMediaFileAnalyzer
         // Since LHS had a contiguous time range, RHS must have one also.
         var rContiguous = TimeRangeHelpers.FindContiguous(rhsTimes.ToArray(), maximumTimeSkip)!;
 
-        if (this._analysisMode == AnalysisMode.Introduction)
-        {
-            // Tweak the end timestamps just a bit to ensure as little content as possible is skipped over.
-            // TODO: remove this
-            if (lContiguous.Duration >= 90)
-            {
-                lContiguous.End -= 2 * maximumTimeSkip;
-                rContiguous.End -= 2 * maximumTimeSkip;
-            }
-            else if (lContiguous.Duration >= 30)
-            {
-                lContiguous.End -= maximumTimeSkip;
-                rContiguous.End -= maximumTimeSkip;
-            }
-        }
-
         return (lContiguous, rContiguous);
     }
 
@@ -426,7 +408,7 @@ public class ChromaprintAnalyzer : IMediaFileAnalyzer
     /// </summary>
     /// <param name="episodes">QueuedEpisodes to adjust.</param>
     /// <param name="originalIntros">Original introductions.</param>
-    private Dictionary<Guid, Intro> AdjustIntroEndTimes(
+    private Dictionary<Guid, Intro> AdjustIntroTimes(
         ReadOnlyCollection<QueuedEpisode> episodes,
         Dictionary<Guid, Intro> originalIntros)
     {
@@ -447,8 +429,21 @@ public class ChromaprintAnalyzer : IMediaFileAnalyzer
                 continue;
             }
 
-            // Only adjust the end timestamp of the intro
-            var originalIntroEnd = new TimeRange(originalIntro.IntroEnd - 15, originalIntro.IntroEnd);
+            // Get chapters for the episode
+            var chapters = Plugin.Instance?.GetChapters(episode.EpisodeId);
+            bool adjustmentFound = false;
+
+            var originalIntroStart = new TimeRange(Math.Max(0, originalIntro.IntroStart - maximumTimeSkip), originalIntro.IntroStart + (2 * maximumTimeSkip));
+            var originalIntroEnd = new TimeRange(originalIntro.IntroEnd - (2 * maximumTimeSkip), Math.Min(episode.Duration, originalIntro.IntroEnd + maximumTimeSkip));
+
+            if (chapters == null || chapters.Count == 0)
+            {
+                chapters = new List<ChapterInfo>
+                {
+                    new ChapterInfo { StartPositionTicks = TimeSpan.FromSeconds(0).Ticks },
+                    new ChapterInfo { StartPositionTicks = TimeSpan.FromSeconds(episode.Duration).Ticks }
+                };
+            }
 
             _logger.LogTrace(
                 "{Name} original intro: {Start} - {End}",
@@ -456,33 +451,75 @@ public class ChromaprintAnalyzer : IMediaFileAnalyzer
                 originalIntro.IntroStart,
                 originalIntro.IntroEnd);
 
-            // Detect silence in the media file up to the end of the intro.
-            var silence = FFmpegWrapper.DetectSilence(episode, (int)originalIntro.IntroEnd + 2);
-
-            // For all periods of silence
-            foreach (var currentRange in silence)
+            // Adjust intro start and end based on chapters
+            foreach (var chapter in chapters)
             {
-                _logger.LogTrace(
-                    "{Name} silence: {Start} - {End}",
-                    episode.Name,
-                    currentRange.Start,
-                    currentRange.End);
+                var chapterStartSeconds = TimeSpan.FromTicks(chapter.StartPositionTicks).TotalSeconds;
 
-                // Ignore any silence that:
-                // * doesn't intersect the ending of the intro, or
-                // * is shorter than the user defined minimum duration, or
-                // * starts before the introduction does
-                if (
-                    !originalIntroEnd.Intersects(currentRange) ||
-                    currentRange.Duration < silenceDetectionMinimumDuration ||
-                    currentRange.Start < originalIntro.IntroStart)
+                // Adjust intro start if close to a chapter
+                if (originalIntroStart.Start < chapterStartSeconds && chapterStartSeconds < originalIntroStart.End)
                 {
-                    continue;
+                    originalIntro.IntroStart = chapterStartSeconds;
+                    _logger.LogTrace(
+                        "{Name} chapter found close to intro start: {Start}",
+                        episode.Name,
+                        chapterStartSeconds);
                 }
 
-                // Adjust the end timestamp of the intro to match the start of the silence region.
-                originalIntro.IntroEnd = currentRange.Start;
-                break;
+                // Adjust intro end if close to a chapter
+                if (originalIntroEnd.Start < chapterStartSeconds && chapterStartSeconds < originalIntroEnd.End)
+                {
+                    originalIntro.IntroEnd = chapterStartSeconds;
+                    adjustmentFound = true;
+                    _logger.LogTrace(
+                        "{Name} chapter found close to intro end: {End}",
+                        episode.Name,
+                        chapterStartSeconds);
+                }
+            }
+
+            // If no adjustment found and in introduction mode, adjust based on silence detection
+            if (!adjustmentFound && this._analysisMode == AnalysisMode.Introduction)
+            {
+                // Detect silence in the media file up to the end of the intro.
+                var silence = FFmpegWrapper.DetectSilence(episode, (int)originalIntro.IntroEnd + 4);
+
+                // For all periods of silence
+                foreach (var currentRange in silence)
+                {
+                    _logger.LogTrace(
+                        "{Name} silence: {Start} - {End}",
+                        episode.Name,
+                        currentRange.Start,
+                        currentRange.End);
+
+                    // Ignore any silence that:
+                    // * doesn't intersect the ending of the intro, or
+                    // * is shorter than the user defined minimum duration, or
+                    // * starts before the introduction does
+                    if (
+                        !originalIntroEnd.Intersects(currentRange) ||
+                        currentRange.Duration < silenceDetectionMinimumDuration ||
+                        currentRange.Start < originalIntro.IntroStart)
+                    {
+                        continue;
+                    }
+
+                    // Adjust the end timestamp of the intro to match the start of the silence region.
+                    originalIntro.IntroEnd = currentRange.Start;
+                    adjustmentFound = true;
+                    break;
+                }
+
+                // If still no adjustment found and intro duration is sufficient, adjust end by subtracting maximumTimeSkip
+                if (!adjustmentFound && originalIntro.Duration >= 30)
+                {
+                    originalIntro.IntroEnd -= maximumTimeSkip;
+                    _logger.LogTrace(
+                        "{Name} adjusted intro end by subtracting maximumTimeSkip: {End}",
+                        episode.Name,
+                        originalIntro.IntroEnd);
+                }
             }
 
             _logger.LogTrace(
