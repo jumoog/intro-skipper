@@ -270,6 +270,11 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             },
             new PluginPageInfo
             {
+                Name = "intro-config.js",
+                EmbeddedResourcePath = GetType().Namespace + ".Configuration.intro-config.js"
+            },
+            new PluginPageInfo
+            {
                 Name = "skip-intro-button.js",
                 EmbeddedResourcePath = GetType().Namespace + ".Configuration.inject.js"
             }

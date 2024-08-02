@@ -19,7 +19,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Remove="Configuration\configPage.html" />
+    <None Remove="Configuration\intro-config.js" />
     <EmbeddedResource Include="Configuration\configPage.html" />
+    <EmbeddedResource Include="Configuration\intro-config.js" />
     <EmbeddedResource Include="Configuration\visualizer.js" />
     <EmbeddedResource Include="Configuration\inject.js" />
     <EmbeddedResource Include="Configuration\version.txt" />
