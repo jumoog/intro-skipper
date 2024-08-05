@@ -129,10 +129,9 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         }
 
         // Inject the skip intro button code into the web interface.
-        var indexPath = Path.Join(applicationPaths.WebPath, "index.html");
         try
         {
-            InjectSkipButton(indexPath);
+            InjectSkipButton(applicationPaths.WebPath);
         }
         catch (Exception ex)
         {
@@ -404,17 +403,35 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// <summary>
     /// Inject the skip button script into the web interface.
     /// </summary>
-    /// <param name="indexPath">Full path to index.html.</param>
-    private void InjectSkipButton(string indexPath)
+    /// <param name="webPath">Full path to index.html.</param>
+    private void InjectSkipButton(string webPath)
     {
+        // search for controllers/playback/video/index.html
+        string searchPattern = "playback-video-index-html.*.chunk.js";
+        string[] filePaths = Directory.GetFiles(webPath, searchPattern, SearchOption.TopDirectoryOnly);
+
+        // should be only one file but this safer
+        foreach (var file in filePaths)
+        {
+            // search for class btnSkipIntro
+            if (File.ReadAllText(file).Contains("btnSkipIntro", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("jellyfin has build-in skip button");
+                return;
+            }
+        }
+
+        // Inject the skip intro button code into the web interface.
+        string indexPath = Path.Join(webPath, "index.html");
+
         // Parts of this code are based off of JellyScrub's script injection code.
         // https://github.com/nicknsy/jellyscrub/blob/main/Nick.Plugin.Jellyscrub/JellyscrubPlugin.cs#L38
 
         _logger.LogDebug("Reading index.html from {Path}", indexPath);
-        var contents = File.ReadAllText(indexPath);
+        string contents = File.ReadAllText(indexPath);
 
         // change URL with every relase to prevent the Browers from caching
-        var scriptTag = "<script src=\"configurationpage?name=skip-intro-button.js&release=" + GetType().Assembly.GetName().Version + "\"></script>";
+        string scriptTag = "<script src=\"configurationpage?name=skip-intro-button.js&release=" + GetType().Assembly.GetName().Version + "\"></script>";
 
         // Only inject the script tag once
         if (contents.Contains(scriptTag, StringComparison.OrdinalIgnoreCase))
@@ -429,7 +446,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
         // Inject a link to the script at the end of the <head> section.
         // A regex is used here to ensure the replacement is only done once.
-        var headEnd = new Regex("</head>", RegexOptions.IgnoreCase);
+        Regex headEnd = new Regex("</head>", RegexOptions.IgnoreCase);
         contents = headEnd.Replace(contents, scriptTag + "</head>", 1);
 
         // Write the modified file contents
