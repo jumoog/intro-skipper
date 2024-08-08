@@ -15,5 +15,10 @@ namespace ConfusedPolarBear.Plugin.IntroSkipper.Data
         /// Gets or sets Credits.
         /// </summary>
         public Intro Credits { get; set; } = new Intro();
+
+        /// <summary>
+        /// Gets or sets Recap.
+        /// </summary>
+        public Intro Recap { get; set; } = new Intro();
     }
 }

@@ -39,4 +39,9 @@ public enum EdlAction
     /// Show a skip button.
     /// </summary>
     Credit,
+
+    /// <summary>
+    /// Show a skip button.
+    /// </summary>
+    Recap
 }

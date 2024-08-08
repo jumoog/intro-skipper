@@ -65,10 +65,11 @@ public static class EdlManager
 
             bool hasIntro = Plugin.Instance!.Intros.TryGetValue(id, out var intro) && intro.Valid;
             bool hasCredit = Plugin.Instance!.Credits.TryGetValue(id, out var credit) && credit.Valid;
+            bool hasRecap = Plugin.Instance!.Recaps.TryGetValue(id, out var recap) && recap.Valid;
 
-            if (!hasIntro && !hasCredit)
+            if (!hasIntro && !hasCredit && !hasRecap)
             {
-                _logger?.LogDebug("Episode {Id} has neither a valid intro nor credit, skipping", id);
+                _logger?.LogDebug("Episode {Id} has neither a valid intro nor credit nor recap, skipping", id);
                 continue;
             }
 
@@ -99,6 +100,24 @@ public static class EdlManager
                 if (action == EdlAction.Intro)
                 {
                     edlContent += credit?.ToEdl(EdlAction.Credit);
+                }
+                else
+                {
+                    edlContent += credit?.ToEdl(action);
+                }
+            }
+
+            // TODO
+            if (hasRecap)
+            {
+                if (edlContent.Length > 0)
+                {
+                    edlContent += Environment.NewLine;
+                }
+
+                if (action == EdlAction.Intro)
+                {
+                    edlContent += credit?.ToEdl(EdlAction.Recap);
                 }
                 else
                 {

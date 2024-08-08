@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.Mime;
 using ConfusedPolarBear.Plugin.IntroSkipper.Configuration;
@@ -80,6 +81,12 @@ public class SkipIntroController : ControllerBase
             Plugin.Instance!.Credits[id] = new Intro(id, cr);
         }
 
+        if (timestamps?.Recap.IntroEnd > 0.0)
+        {
+            var cr = new TimeRange(timestamps.Recap.IntroStart, timestamps.Recap.IntroEnd);
+            Plugin.Instance!.Credits[id] = new Intro(id, cr);
+        }
+
         Plugin.Instance!.SaveTimestamps(AnalysisMode.Introduction);
         Plugin.Instance!.SaveTimestamps(AnalysisMode.Credits);
 
@@ -137,6 +144,11 @@ public class SkipIntroController : ControllerBase
         if (GetIntro(id, AnalysisMode.Credits) is Intro credits)
         {
             segments[AnalysisMode.Credits] = credits;
+        }
+
+        if (GetIntro(id, AnalysisMode.Recaps) is Intro recaps)
+        {
+            segments[AnalysisMode.Recaps] = recaps;
         }
 
         return segments;
@@ -197,6 +209,10 @@ public class SkipIntroController : ControllerBase
         {
             Plugin.Instance!.Credits.Clear();
         }
+        else if (mode == AnalysisMode.Recaps)
+        {
+            Plugin.Instance!.Recaps.Clear();
+        }
 
         if (eraseCache)
         {
@@ -221,15 +237,26 @@ public class SkipIntroController : ControllerBase
     {
         List<IntroWithMetadata> intros = new();
 
-        var timestamps = mode == AnalysisMode.Introduction ?
-            Plugin.Instance!.Intros :
-            Plugin.Instance!.Credits;
+        ConcurrentDictionary<Guid, Intro> timestamps = [];
+
+        switch (mode)
+        {
+            case AnalysisMode.Introduction:
+                timestamps = Plugin.Instance!.Intros;
+                break;
+            case AnalysisMode.Credits:
+                timestamps = Plugin.Instance!.Credits;
+                break;
+            case AnalysisMode.Recaps:
+                timestamps = Plugin.Instance!.Recaps;
+                break;
+        }
 
         // Get metadata for all intros
         foreach (var intro in timestamps)
         {
             // Get the details of the item from Jellyfin
-            var rawItem = Plugin.Instance.GetItem(intro.Key);
+            var rawItem = Plugin.Instance!.GetItem(intro.Key);
             if (rawItem == null || rawItem is not Episode episode)
             {
                 throw new InvalidCastException("Unable to cast item id " + intro.Key + " to an Episode");

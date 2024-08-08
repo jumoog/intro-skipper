@@ -29,6 +29,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     private ILogger<Plugin> _logger;
     private string _introPath;
     private string _creditsPath;
+    private string _repcapPath;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Plugin"/> class.
@@ -65,6 +66,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         FingerprintCachePath = Path.Join(introsDirectory, pluginCachePath);
         _introPath = Path.Join(applicationPaths.DataPath, pluginDirName, "intros.xml");
         _creditsPath = Path.Join(applicationPaths.DataPath, pluginDirName, "credits.xml");
+        _repcapPath = Path.Join(applicationPaths.DataPath, pluginDirName, "recaps.xml");
 
         var cacheRoot = applicationPaths.CachePath;
         var oldIntrosDirectory = Path.Join(cacheRoot, pluginDirName);
@@ -117,6 +119,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         // migrate from XMLSchema to DataContract
         XmlSerializationHelper.MigrateXML(_introPath);
         XmlSerializationHelper.MigrateXML(_creditsPath);
+        XmlSerializationHelper.MigrateXML(_repcapPath);
 
         // TODO: remove when https://github.com/jellyfin/jellyfin-meta/discussions/30 is complete
         try
@@ -153,6 +156,11 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// Gets all discovered ending credits.
     /// </summary>
     public ConcurrentDictionary<Guid, Intro> Credits { get; } = new();
+
+    /// <summary>
+    /// Gets all discovered ending credits.
+    /// </summary>
+    public ConcurrentDictionary<Guid, Intro> Recaps { get; } = new();
 
     /// <summary>
     /// Gets the most recent media item queue.
@@ -202,20 +210,49 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public void SaveTimestamps(AnalysisMode mode)
     {
         List<Intro> introList = new List<Intro>();
-        var filePath = mode == AnalysisMode.Introduction
-                        ? _introPath
-                        : _creditsPath;
-
-        lock (_introsLock)
+        var filePath = string.Empty;
+        switch (mode)
         {
-            introList.AddRange(mode == AnalysisMode.Introduction
-                            ? Instance!.Intros.Values
-                            : Instance!.Credits.Values);
+            case AnalysisMode.Introduction:
+                {
+                    filePath = _introPath;
+                    lock (_introsLock)
+                    {
+                        introList.AddRange(Instance!.Intros.Values);
+                    }
+
+                    break;
+                }
+
+            case AnalysisMode.Credits:
+                {
+                    filePath = _creditsPath;
+                    lock (_introsLock)
+                    {
+                        introList.AddRange(Instance!.Credits.Values);
+                    }
+
+                    break;
+                }
+
+            case AnalysisMode.Recaps:
+                {
+                    filePath = _repcapPath;
+                    lock (_introsLock)
+                    {
+                        introList.AddRange(Instance!.Recaps.Values);
+                    }
+
+                    break;
+                }
+
+            default:
+                break;
         }
 
         lock (_serializationLock)
         {
-             try
+            try
             {
                 XmlSerializationHelper.SerializeToXml(introList, filePath);
             }
@@ -249,6 +286,16 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             foreach (var credit in creditList)
             {
                 Instance!.Credits.TryAdd(credit.EpisodeId, credit);
+            }
+        }
+
+        if (File.Exists(_repcapPath))
+        {
+            var recapList = XmlSerializationHelper.DeserializeFromXml(_repcapPath);
+
+            foreach (var recap in recapList)
+            {
+                Instance!.Recaps.TryAdd(recap.EpisodeId, recap);
             }
         }
     }
@@ -313,9 +360,17 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// <returns>Intro.</returns>
     internal Intro GetIntroByMode(Guid id, AnalysisMode mode)
     {
-        return mode == AnalysisMode.Introduction
-            ? Instance!.Intros[id]
-            : Instance!.Credits[id];
+        switch (mode)
+        {
+            case AnalysisMode.Introduction:
+                return Instance!.Intros[id];
+            case AnalysisMode.Credits:
+                return Instance!.Credits[id];
+            case AnalysisMode.Recaps:
+                return Instance!.Recaps[id];
+        }
+
+        return new Intro();
     }
 
     internal BaseItem? GetItem(Guid id)
@@ -378,6 +433,10 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             {
                  Instance!.Credits.AddOrUpdate(intro.Key, intro.Value, (key, oldValue) => intro.Value);
             }
+            else if (mode == AnalysisMode.Recaps)
+            {
+                Instance!.Recaps.AddOrUpdate(intro.Key, intro.Value, (key, oldValue) => intro.Value);
+            }
         }
 
         SaveTimestamps(mode);
@@ -394,11 +453,13 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             {
                 Instance!.Intros.TryRemove(key, out _);
                 Instance!.Credits.TryRemove(key, out _);
+                Instance!.Recaps.TryRemove(key, out _);
             }
         }
 
         SaveTimestamps(AnalysisMode.Introduction);
         SaveTimestamps(AnalysisMode.Credits);
+        SaveTimestamps(AnalysisMode.Recaps);
     }
 
     /// <summary>

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Net.Mime;
-using ConfusedPolarBear.Plugin.IntroSkipper.Data;
 using MediaBrowser.Common.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -144,6 +143,7 @@ public class VisualizationController : ControllerBase
         {
             Plugin.Instance!.Intros.TryRemove(e.EpisodeId, out _);
             Plugin.Instance!.Credits.TryRemove(e.EpisodeId, out _);
+            Plugin.Instance!.Recaps.TryRemove(e.EpisodeId, out _);
             e.State.ResetStates();
             if (eraseCache)
             {
@@ -153,6 +153,7 @@ public class VisualizationController : ControllerBase
 
         Plugin.Instance!.SaveTimestamps(AnalysisMode.Introduction);
         Plugin.Instance!.SaveTimestamps(AnalysisMode.Credits);
+        Plugin.Instance!.SaveTimestamps(AnalysisMode.Recaps);
 
         return NoContent();
     }
